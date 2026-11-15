@@ -28,7 +28,10 @@ function drawThumbs(){const t=$("#thumbs");t.textContent="";FILES.forEach((o,i)=
 $("#fl").onchange=e=>{const max=CONFIG.maxFileMB*1048576;let skip=0;[...e.target.files].forEach(f=>{if(!f.type.startsWith("image/")||f.size>max||FILES.length>=CONFIG.maxFiles){skip++;return}const o={file:f,url:""},r=new FileReader();FILES.push(o);r.onload=()=>{o.url=r.result;drawThumbs()};r.readAsDataURL(f)});e.target.value="";fh(skip)};
 
 async function uploadImages(){
-  if(!FILES.length||!CONFIG.imgbbKey)return[];
+  if(!FILES.length)return{links:[],err:""};
+  if(!CONFIG.imgbbKey||CONFIG.imgbbKey==="ISI_DENGAN_API_KEY_IMGBB_ANDA"){
+    return{links:[],err:"imgbbKey belum diisi di js/config.js."};
+  }
   const links=[];
   for(const o of FILES){
     try{
@@ -36,18 +39,25 @@ async function uploadImages(){
       fd.append("image",o.file);
       const r=await fetch("https://api.imgbb.com/1/upload?key="+encodeURIComponent(CONFIG.imgbbKey),{method:"POST",body:fd});
       const j=await r.json();
-      if(j.success&&j.data&&j.data.url)links.push(j.data.url);
-    }catch(e){}
+      if(j.success&&j.data&&j.data.url){
+        links.push(j.data.url);
+      }else{
+        return{links,err:"Gagal upload ke ImgBB: "+(j.error&&j.error.message?j.error.message:"API Key tidak valid")};
+      }
+    }catch(e){
+      return{links,err:"Koneksi ke ImgBB terputus."};
+    }
   }
-  return links;
+  return{links,err:""};
 }
 
 /* ===== KIRIM PESANAN (WhatsApp, email, server, simpan di perangkat) ===== */
 let TXT="",ORDER=null;
 async function submit(){
   const btn=$("#next");
-  if(FILES.length&&CONFIG.imgbbKey){btn.disabled=true;btn.textContent="Mengunggah gambar..."}
-  const imgLinks=await uploadImages();
+  if(FILES.length){btn.disabled=true;btn.textContent="Mengunggah gambar..."}
+  const up=await uploadImages();
+  const imgLinks=up.links;
   btn.disabled=false;btn.textContent="Kirim pesanan";
 
   const id="DK-"+Date.now().toString(36).toUpperCase().slice(-6);
@@ -77,7 +87,9 @@ async function submit(){
   $("#thx").textContent="Terima kasih, "+$("#nm").value.trim()+"!";
   $("#oid").textContent="Nomor pesanan: "+id;
 
-  if(imgLinks.length){
+  if(up.err){
+    $("#cmsg").textContent=up.err;
+  }else if(imgLinks.length){
     $("#cmsg").textContent=imgLinks.length+" gambar contoh berhasil diunggah. Klik tombol WhatsApp untuk mengirim pesanan beserta link gambar.";
   }else{
     $("#cmsg").textContent=FILES.length&&!CONFIG.endpoint?"Gambar contoh perlu dilampirkan manual di chat WhatsApp atau email.":"";
@@ -94,8 +106,8 @@ async function submit(){
       imgLinks.forEach((u,i)=>fd.append("link_gambar_"+(i+1),u));
       FILES.forEach(o=>fd.append("gambar",o.file));
       const r=await fetch(CONFIG.endpoint,{method:"POST",body:fd,headers:{Accept:"application/json"}});
-      if(!imgLinks.length)$("#cmsg").textContent=r.ok?"Pesanan Anda sudah masuk ke sistem kami.":bad;
-    }catch(e){if(!imgLinks.length)$("#cmsg").textContent=bad}
+      if(!imgLinks.length&&!up.err)$("#cmsg").textContent=r.ok?"Pesanan Anda sudah masuk ke sistem kami.":bad;
+    }catch(e){if(!imgLinks.length&&!up.err)$("#cmsg").textContent=bad}
   }
 }
 

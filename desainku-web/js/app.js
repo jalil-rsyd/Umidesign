@@ -21,23 +21,25 @@ if(cur===2){if(!$("#nm").value.trim())return"Isi nama Anda.";const c=$("#ct").va
 $("#next").onclick=()=>{const m=check();if(m){$("#err").textContent=m;return}if(cur<2){show(cur+1);return}submit()};
 $("#back").onclick=()=>show(cur-1);
 
-/* ===== UNGGAH GAMBAR ===== */
+/* ===== UNGGAH GAMBAR (pilih file + pratinjau) ===== */
 let FILES=[];
 const fh=skip=>{$("#flh").textContent="Maksimal "+CONFIG.maxFiles+" gambar, masing-masing "+CONFIG.maxFileMB+" MB."+(skip?" "+skip+" file dilewati karena bukan gambar, terlalu besar, atau melebihi batas.":"")};fh(0);
 function drawThumbs(){const t=$("#thumbs");t.textContent="";FILES.forEach((o,i)=>{const w=document.createElement("div"),im=new Image(),x=document.createElement("button");w.className="th";im.src=o.url;im.alt=o.file.name;x.type="button";x.textContent="×";x.setAttribute("aria-label","Hapus "+o.file.name);x.onclick=()=>{FILES.splice(i,1);drawThumbs()};w.append(im,x);t.appendChild(w)})}
 $("#fl").onchange=e=>{const max=CONFIG.maxFileMB*1048576;let skip=0;[...e.target.files].forEach(f=>{if(!f.type.startsWith("image/")||f.size>max||FILES.length>=CONFIG.maxFiles){skip++;return}const o={file:f,url:""},r=new FileReader();FILES.push(o);r.onload=()=>{o.url=r.result;drawThumbs()};r.readAsDataURL(f)});e.target.value="";fh(skip)};
 
+/* ===== UPLOAD GAMBAR KE IMGBB (menghasilkan link, otomatis kedaluwarsa) ===== */
 async function uploadImages(){
   if(!FILES.length)return{links:[],err:""};
   if(!CONFIG.imgbbKey||CONFIG.imgbbKey==="ISI_DENGAN_API_KEY_IMGBB_ANDA"){
     return{links:[],err:"imgbbKey belum diisi di js/config.js."};
   }
+  const exp=CONFIG.imgExpireDays>0?"&expiration="+Math.round(CONFIG.imgExpireDays*86400):"";
   const links=[];
   for(const o of FILES){
     try{
       const fd=new FormData();
       fd.append("image",o.file);
-      const r=await fetch("https://api.imgbb.com/1/upload?key="+encodeURIComponent(CONFIG.imgbbKey),{method:"POST",body:fd});
+      const r=await fetch("https://api.imgbb.com/1/upload?key="+encodeURIComponent(CONFIG.imgbbKey)+exp,{method:"POST",body:fd});
       const j=await r.json();
       if(j.success&&j.data&&j.data.url){
         links.push(j.data.url);
@@ -74,8 +76,9 @@ async function submit(){
     ["Anggaran",$("#bg").value]
   ];
 
+  const expNote=CONFIG.imgExpireDays>0?" (berlaku "+CONFIG.imgExpireDays+" hari)":"";
   const imgNote=imgLinks.length
-    ?"\n\nLink gambar contoh:\n"+imgLinks.map((u,i)=>(i+1)+". "+u).join("\n")
+    ?"\n\nLink gambar contoh"+expNote+":\n"+imgLinks.map((u,i)=>(i+1)+". "+u).join("\n")
     :(FILES.length?"\n\nContoh gambar saya kirim setelah pesan ini.":"");
 
   TXT="Pesanan "+id+" ("+CONFIG.brand+")\n"+rows.map(([k,v])=>k+": "+v).join("\n")+imgNote;
@@ -92,7 +95,7 @@ async function submit(){
   }else if(imgLinks.length){
     $("#cmsg").textContent=imgLinks.length+" gambar contoh berhasil diunggah. Klik tombol WhatsApp untuk mengirim pesanan beserta link gambar.";
   }else{
-    $("#cmsg").textContent=FILES.length&&!CONFIG.endpoint?"Gambar contoh perlu dilampirkan manual di chat WhatsApp atau email.":"";
+    $("#cmsg").textContent="";
   }
 
   $("#flow").hidden=true;$("#done").hidden=false;$("#form").scrollIntoView();
@@ -104,7 +107,6 @@ async function submit(){
       fd.append("id",id);
       rows.forEach(([k,v])=>fd.append(k,v));
       imgLinks.forEach((u,i)=>fd.append("link_gambar_"+(i+1),u));
-      FILES.forEach(o=>fd.append("gambar",o.file));
       const r=await fetch(CONFIG.endpoint,{method:"POST",body:fd,headers:{Accept:"application/json"}});
       if(!imgLinks.length&&!up.err)$("#cmsg").textContent=r.ok?"Pesanan Anda sudah masuk ke sistem kami.":bad;
     }catch(e){if(!imgLinks.length&&!up.err)$("#cmsg").textContent=bad}

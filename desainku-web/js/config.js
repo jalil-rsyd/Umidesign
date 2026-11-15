@@ -4,7 +4,8 @@ const CONFIG={
   whatsapp:"6285717787544",  // WAJIB diisi: nomor tujuan pesanan, format 62812xxxxxxx (tanpa + dan tanpa 0 di depan)
   
   email:"abduljalilmaularosyid@gmail.com", // WAJIB diisi: email tujuan pesanan 
-  endpoint:"https://formspree.io/f/myeeqeyq",               // opsional: alamat Formspree atau Google Apps Script agar pesanan masuk otomatis
+  endpoint:"https://formspree.io/f/myeeqeyq",  // opsional: alamat Formspree atau Google Apps Script agar pesanan masuk otomatis
+  imgbbKey: "f4bba867e285e712b32aac878cf404b4",
   maxFiles:3,                // jumlah maksimal gambar contoh
   maxFileMB:2,               // ukuran maksimal tiap gambar (MB)
   colors:[                   // pilihan warna di formulir: [nama, kode warna]
